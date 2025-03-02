@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Test Streaming Audio</title>
+	<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
+</head>
+
+<body>
+	<button>Test</button>
+	<canvas>
+		Your browser does not support the HTML5 canvas tag.
+	</canvas>
+</body>
+
+<script>
+	import * as PIXI from 'pixi.js'
+	import { Live2DModel } from 'pixi-live2d-display'
+
+	window.PIXI = PIXI
+
+		(async function () {
+			const app = new PIXI.Application({
+				width: 800,
+				height: 600,
+				backgroundColor: 0x1099bb,
+				antialias: true,
+				resolution: 1,
+			})
+
+			document.body.appendChild(app.view)
+
+			const model = new Live2DModel('./public/resources/Hiyori/Hiyori.model3.json')
+			app.stage.addChild(model);
+
+			// transforms
+			model.x = 100;
+			model.y = 100;
+			model.rotation = Math.PI;
+			model.skew.x = Math.PI;
+			model.scale.set(2, 2);
+			model.anchor.set(0.5, 0.5);
+
+			// interaction
+			model.on('hit', (hitAreas) => {
+				if (hitAreas.includes('body')) {
+					model.motion('tap_body');
+				}
+			});
+		})
+
+	const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+	// 用于存储接收到的音频数据
+	let audioBufferQueue = [];
+	let currentTime = 0;
+
+	// 创建一个播放音频块的函数
+	async function playAudioChunk(chunkData) {
+		// try {
+		// 	const cloneBuffer = new Uint8Array(chunkData.slice()).slice().buffer
+		// 	const decodedAudio = await audioContext.decodeAudioData(cloneBuffer)
+		// 	const cloneAudio = await audioContext.decodeAudioData(chunkData)
+		// 	const source = audioContext.createBufferSource();
+		// 	source.buffer = cloneAudio;
+		// 	source.connect(audioContext.destination);
+		// 	source.start(currentTime);
+		// 	currentTime += cloneAudio.duration;
+		// 	console.log("Playing audio chunk");
+		// } catch (error) {
+		// 	console.error(error)
+		// }
+
+		// const audioBuffer = audioContext.createBuffer(1, chunkData.length, 24000);  // 假设采样率为 44100
+		// audioBuffer.getChannelData(0).set(chunkData);
+
+		// const source = audioContext.createBufferSource();
+		// source.buffer = audioBuffer;
+		// source.connect(audioContext.destination);
+		// source.start(currentTime);
+		// currentTime += audioBuffer.duration;
+		// console.log("Playing audio chunk");
+	}
+
+	// WebSocket 或其他协议实时接收音频数据
+	// 假设通过 WebSocket 获取音频数据并触发 onNewAudioChunk
+	const ws = new WebSocket('ws://localhost:7890');
+	ws.onmessage = (event) => {
+		if (event.data instanceof Blob) {
+			const reader = new FileReader();
+			reader.onload = () => {
+				const chunkData = new Float32Array(reader.result);
+				// audioBufferQueue.push(chunkData);
+				playAudioChunk(chunkData);
+				console.log("Received audio data:", audioBufferQueue.length);
+			};
+			reader.readAsArrayBuffer(event.data);
+		}
+
+		if (event.data === "END") {
+			// audioBufferQueue.forEach(playAudioChunk);
+			audioBufferQueue = [];
+			console.log("End of audio stream");
+		}
+	};
+
+	const button = document.querySelector('button');
+	button.addEventListener("click", () => {
+		ws.send(`
+			The rain had started to fall in quiet sheets, a soft patter against the window that filled the room with an almost comforting rhythm. In the dim light, Evelyn sat by the fire, her fingers tracing the edges of an old book. The smell of wood burning, mixed with the fresh scent of rain, hung in the air. Her mind wandered back to the days when she was a child, the days when everything seemed simpler—when she would lie in her bed listening to the rain and let it carry her into dreams of grand adventures.
+
+She sighed and opened the book, the pages crackling softly. It was a journal, one she had found in the attic of her family’s old house. She had read it countless times, but tonight something felt different. There was a certain weight to the words, as though they were calling out to her in a way they never had before. The ink was faded, but the handwriting was unmistakable—her grandmother’s.
+
+As she turned the page, she found a drawing of a map, intricate and detailed, leading through a dense forest and across a wide river. The caption beneath it read: "Follow the path, and you will find what has been lost." Evelyn’s heart quickened. Her grandmother had always been a woman of mystery, full of strange tales and hidden meanings. But now, with the map in her hands, Evelyn realized there might be more truth to those stories than she had ever imagined.
+
+A flash of lightning illuminated the room, and in that instant, Evelyn felt an unexplainable pull to the forest beyond the garden—where the path from the map might just begin. She closed the book, her mind racing. The adventure, it seemed, had finally found her.
+			
+`)
+	})
+</script>
+
+</html>
